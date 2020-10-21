@@ -30,6 +30,7 @@ RUN dnf install -y binutils rsync buildah which file xz cpio unzip cmake ninja-b
 COPY sdk-docker /
 ADD flutter-wayland-test-app-image /sdk/flutter/bin/
 
+RUN rm -rf /flutter-wayland-app/files/flutter-wayland-app.tar
 RUN chmod -R a+rwx /sdk
 RUN chmod a+w /flutter-wayland-app/files
 RUN echo r50 >/sdk-release
