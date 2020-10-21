@@ -15,5 +15,5 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-[lgpub]
+[sdk-docker/lgpub]
 checkout = git clone git@github.com:stagingrdkm/lgpub.git
