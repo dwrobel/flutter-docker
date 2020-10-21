@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# Flutter OCI-image generator
+#
+# Author: Damian Wrobel <dwrobel@ertelnet.rybnik.pl>
+#
+
+set -e
+set -x
+
+function follow_links() (
+  cd -P "$(dirname -- "$1")"
+  file="$PWD/$(basename -- "$1")"
+  while [[ -h "$file" ]]; do
+    cd -P "$(dirname -- "$file")"
+    file="$(readlink -- "$file")"
+    cd -P "$(dirname -- "$file")"
+    file="$PWD/$(basename -- "$file")"
+  done
+  echo "$file"
+)
+
+flutter_do_tar() {
+  echo "PWD: $PWD"
+  tmpdir=$(mktemp -d)
+  appdir="${tmpdir}/usr/share/flutter/apps/flutter-wayland-app/data"
+  mkdir -p "${appdir}"
+  (cd build && rsync -av --exclude isolate_snapshot_data --exclude kernel_blob.bin --exclude vm_snapshot_data flutter_assets "${appdir}")
+  (cd build && rsync -av lib "${appdir}/..")
+  tar -cf ${BIN_DIR}/../../../flutter-wayland-app/files/flutter-wayland-app.tar -C "${tmpdir}" .
+  rm -rf ${tmpdir}
+}
+
+flutter_do_oci_image() {
+    echo "[1/3] Creating application tarball"
+    flutter_do_tar
+    echo "[2/3] Updating OCI image"
+    (cd ${BIN_DIR}/../../../lgpub/dac/apps/buildah && buildah unshare ./build.sh flutter-wayland-app latest)
+    echo "[3/3] finished"
+}
+
+PROG_NAME="$(follow_links "${BASH_SOURCE[0]}")"
+BIN_DIR="$(cd "${PROG_NAME%/*}" ; pwd -P)"
+OS="$(uname -s)"
+
+# Setup environment for flutter_do_compile()
+S=$PWD
+STAGING_BINDIR_NATIVE=${BIN_DIR}/../../engine/src/out/linux_release_x64
+FLUTTER_ENGINE_OUT_DIR=${STAGING_BINDIR_NATIVE}
+FLUTTER_PACKAGE=$(parse_yaml pubspec.yaml "pubspec_" | grep "name" | cut -d ' ' -f 2-)
+FLUTTER_PACKAGE+="/main.dart"
+export PATH=${BIN_DIR}:$PATH
+
+echo main_file: ${main_file}
+
+flutter_do_oci_image
