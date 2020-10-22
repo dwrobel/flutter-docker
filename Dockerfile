@@ -28,7 +28,7 @@ RUN dnf update -y
 RUN dnf install -y binutils rsync buildah which file xz cpio unzip cmake ninja-build clang pkgconfig\(gtk+-3.0\) weston mesa-dri-drivers xorg-x11-server-Xvfb findutils python3-xlrd
 
 COPY sdk-docker /
-ADD flutter-wayland-test-app-image /sdk/flutter/bin/
+ADD flutter-wayland-test-app-image flutter-bundler /sdk/flutter/bin/
 
 RUN rm -rf /flutter-wayland-app/files/flutter-wayland-app.tar
 RUN chmod -R a+rwx /sdk
