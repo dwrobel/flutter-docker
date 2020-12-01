@@ -175,22 +175,38 @@ flutter_generate_launcher() {
 	
 	SCRIPT_DIR=$(cd `dirname $0` && pwd)
 	
-	
+	# BCM Nexus specific
 	[ -f /usr/bin/weston.exports.inc ] && source /usr/bin/weston.exports.inc
-	
-	export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
-	export WAYLAND_DISPLAY=wayland-0
 	export LD_PRELOAD=$WAYLAND_PLATFORM_LD_PRELOADS
 	export nexus_ipc_dir=/var/run/nxserver
-	
-	export LD_LIBRARY_PATH=${SCRIPT_DIR}/lib:${LD_LIBRARY_PATH}
-	
-	if [ ! -f /usr/lib/libEGL.so.1 ]; then
-	    if [ ! -L ${SCRIPT_DIR}/lib/libEGL.so.1 ]; then
-	        ln -sf /usr/lib/libEGL.so ${SCRIPT_DIR}/lib/libEGL.so.1
-	    fi
+	export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+
+
+	if [ -x ${WAYLAND_DISPLAY+x} ]; then
+		export WAYLAND_DISPLAY=wayland-0
 	fi
-	
+
+	if [ -z ${XDG_RUNTIME_DIR+x} ]; then
+		export XDG_RUNTIME_DIR=/run/
+	fi
+
+	export LD_LIBRARY_PATH=${SCRIPT_DIR}/lib:${LD_LIBRARY_PATH}
+
+	if [ ! -f /usr/lib/libEGL.so.1 ]; then
+		if [ ! -L ${SCRIPT_DIR}/lib/libEGL.so.1 ]; then
+			ln -sf /usr/lib/libEGL.so ${SCRIPT_DIR}/lib/libEGL.so.1
+		fi
+	fi
+
+	# Workaround for RDK raspberry pi
+	if [ ! -f /usr/lib/libwayland-egl.so.1 ]; then
+		if [ ! -L ${SCRIPT_DIR}/lib/libwayland-egl.so.1 ]; then
+			ln -sf /usr/lib/libwayland-egl.so ${SCRIPT_DIR}/lib/libwayland-egl.so.1
+		fi
+
+		export LD_PRELOAD=${LD_PRELOAD}:/usr/lib/libGLESv2.so.2:/usr/lib/libwayland-client.so.0:/usr/lib/libwayland-egl.so:/usr/lib/libopenmaxil.so
+	fi
+
 	exec ${SCRIPT_DIR}/flutter-launcher-wayland ${SCRIPT_DIR}/data/flutter_assets "$@"
 	EOD
 
