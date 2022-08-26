@@ -33,7 +33,7 @@ ADD flutter-wayland-test-app-image flutter-bundler /sdk/flutter/bin/
 RUN rm -rf /flutter-wayland-app/files/flutter-wayland-app.tar
 RUN chmod -R a+rwx /sdk
 RUN chmod a+w /flutter-wayland-app/files
-RUN echo r53 >/sdk-release
+RUN echo r59 >/sdk-release
 
 RUN dnf clean all
 ADD entrypoint.sh /

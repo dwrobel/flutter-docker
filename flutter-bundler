@@ -52,16 +52,6 @@ flutter_do_tar() {
   rm -rf ${tmpdir}
 }
 
-
-flutter_do_oci_image() {
-    echo "[1/3] Creating application tarball"
-    flutter_do_tar
-    echo "[2/3] Updating OCI image"
-    (cd ${BIN_DIR}/../../../lgpub/dac/apps/buildah && buildah unshare ./build.sh flutter-wayland-app latest)
-    echo "[3/3] finished"
-}
-
-
 flutter_unpack_archive() {
     file_full_path=$1
     destdir=$2
@@ -98,55 +88,29 @@ flutter_unpack_archive() {
     esac
 }
 
-
-flutter_unpack_packages() {
-    destdir=$1
-
-    for f in ${BIN_DIR}/../../../flutter-wayland-app/files/*; do
-        flutter_unpack_archive $f $destdir
-    done
-}
-
-
 flutter_do_bundle() {
     echo "PWD: $PWD"
-    echo "Create temporary dir"
-    local tmpdir=$(mktemp -d)
-    mkdir -p ${tmpdir}
-  
-    echo "Unpack archives"
-    flutter_unpack_packages ${tmpdir}
-
-    local appdir="${tmpdir}/"
+    local appdir="${BIN_DIR}/../../../flutter-wayland-app/files/${SDK_TYPE}"
 
     echo "Recreate output directory"
     rm -rf ${S}/build/${TARGET}
     mkdir -p ${S}/build/${TARGET}/
-  
+
     echo "Install data sub-directory"
     mkdir -p ${S}/build/${TARGET}/data
     cp -a ${S}/build/flutter_assets ${S}/build/${TARGET}/data/
 
     echo "Install icudtl.dat"
-    install -p -m 0644 -D ${tmpdir}/usr/share/flutter/icudtl.dat ${S}/build/${TARGET}/data/icudtl.dat
+    install -p -m 0644 -D ${appdir}/usr/share/flutter/icudtl.dat ${S}/build/${TARGET}/data/icudtl.dat
 
     echo "Install libapp.so"
     install -p -m 0755 -D ${S}/build/lib/libapp.so  ${S}/build/${TARGET}/lib/libapp.so
 
     echo "Install libflutter_engine.so library"
-    install -p -m 0755 -D ${tmpdir}/usr/lib/libflutter_engine.so ${S}/build/${TARGET}/lib/libflutter_engine.so
-
-    echo "Install libflutter_engine.so library"
-    install -p -m 0755 -D ${tmpdir}/usr/lib/libflutter_engine.so ${S}/build/${TARGET}/lib/libflutter_engine.so
+    install -p -m 0755 -D ${appdir}/usr/lib/libflutter_engine.so ${S}/build/${TARGET}/lib/libflutter_engine.so
 
     echo "Install flutter-launcher-wayland"
-    install -p -m 0755 -D ${tmpdir}/usr/bin/flutter-launcher-wayland ${S}/build/${TARGET}/flutter-launcher-wayland
-
-    # dw: TODO: make it platform independent
-    echo "Install awc_cli"
-    install -p -m 0755 -D ${BIN_DIR}/../../../lgpub/dac/client/bin/armv7l/bin/awc_cli ${S}/build/${TARGET}/awc_cli
-
-    rm -rf ${tmpdir}
+    install -p -m 0755 -D ${appdir}/usr/bin/flutter-launcher-wayland ${S}/build/${TARGET}/flutter-launcher-wayland
 }
 
 
@@ -176,13 +140,25 @@ flutter_generate_launcher() {
 	SCRIPT_DIR=$(cd `dirname $0` && pwd)
 	
 	# BCM Nexus specific
-	[ -f /usr/bin/weston.exports.inc ] && source /usr/bin/weston.exports.inc
+	if [ -f /usr/bin/weston.exports.inc ]; then
+		source /usr/bin/weston.exports.inc
+	fi
+
+	if [ ! -d ${HOME} ]; then
+		echo 'warning: $HOME does not point to existing directory, setting to /tmp'
+		export HOME=/tmp
+	fi
+
+	if [ -z ${LANG+x} ]; then
+		echo 'warning: $LANG empty, setting to C'
+		export LANG=C
+	fi
+
 	export LD_PRELOAD=$WAYLAND_PLATFORM_LD_PRELOADS
 	export nexus_ipc_dir=/var/run/nxserver
 	export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
 
-
-	if [ -x ${WAYLAND_DISPLAY+x} ]; then
+	if [ -z ${WAYLAND_DISPLAY+x} ]; then
 		export WAYLAND_DISPLAY=wayland-0
 	fi
 
@@ -232,6 +208,15 @@ OS="$(uname -s)"
 # Setup environment
 S=$PWD
 FLUTTER_PACKAGE=$(parse_yaml pubspec.yaml "pubspec_" | grep "name" | cut -d ' ' -f 2-)
+SDK_TYPE="release"
+
+for opt in "$@"
+do
+    if [ "${opt}" = "--profile" ]  || [ "${opt}" = "--release" ]; then
+        SDK_TYPE=${opt:2}
+        break
+    fi
+done
 
 export PATH=${BIN_DIR}:$PATH
 

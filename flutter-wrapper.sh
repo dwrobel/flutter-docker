@@ -53,6 +53,9 @@ DOCKER_CMD=$(which podman || which docker)
 
 config_file="${DW_CONFIG_PATH:-${HOME}/.config/docker-wrapper.sh/dw-config.conf}"
 
+VDIR="$HOME"
+VDIR_HOST=$VDIR
+
 if [ -e "${config_file}" ]; then
     # Allows to specify additional options to docker build/run commands
     # DOCKER_BUILD=("--pull=false")
@@ -61,12 +64,11 @@ if [ -e "${config_file}" ]; then
 fi
 
 if [ -z "${DOCKER_IMG}" ]; then
-    DOCKER_IMG=docker.io/dwrobel/flutter-wrapper:latest
+    DOCKER_IMG=docker.io/dwrobel/flutter-wrapper:r59
     #echo sudo ${DOCKER_CMD} build --network=host "${DOCKER_BUILD[@]}" -t ${DOCKER_IMG} $DIRECTORY
     #exit 0
 fi
 
-VDIR="$HOME"
 
 if [ -n "${DISPLAY}" ]; then
     display_opts="-e DISPLAY=$DISPLAY"
@@ -94,4 +96,23 @@ fi
 
 test -t 1 && USE_TTY="-t"
 
-sudo ${DOCKER_CMD} run --network=host "${DOCKER_RUN[@]}" --entrypoint=/entrypoint.sh --privileged -p 3389:3389 -v /dev/dri:/dev/dri -i ${USE_TTY} ${cache_dir} ${cc_opts} ${cxx_opts} ${wayland_display_opts} -e USER=$USER -e UID=$UID -e GID=$(id -g $USER) -e CWD="$CWD" ${display_opts} ${xdg_runtime_opts} -v /tmp/.X11-unix:/tmp/.X11-unix -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v "${VDIR}":"${VDIR}" ${DOCKER_IMG} "$@"
+sudo ${DOCKER_CMD} run \
+    --rm \
+    --network=host \
+    "${DOCKER_RUN[@]}" \
+    --entrypoint=/entrypoint.sh \
+    --privileged \
+    -p 3389:3389 \
+    -v /dev/dri:/dev/dri \
+    -i ${USE_TTY} \
+    ${cache_dir} ${cc_opts} ${cxx_opts} ${wayland_display_opts} \
+    -e USER=$USER \
+    -e UID=$UID \
+    -e GID=$(id -g $USER) \
+    -e CWD="$CWD" \
+    ${display_opts} ${xdg_runtime_opts} \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
+    -v "${VDIR_HOST}":"${VDIR}" \
+    ${DOCKER_IMG} \
+    "$@"
